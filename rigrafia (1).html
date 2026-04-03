@@ -439,6 +439,8 @@ function makeTessera(tile, zone, pos) {
     rm.className = 'tessera-remove';
     rm.textContent = '×';
     rm.addEventListener('click', e => { e.stopPropagation(); removeTile(tile.id); });
+    rm.addEventListener('touchend', e => { e.stopPropagation(); e.preventDefault(); removeTile(tile.id); });
+    rm.addEventListener('touchstart', e => { e.stopPropagation(); });
     el.appendChild(rm);
     el.addEventListener('dragover', onTileDragOver);
     el.addEventListener('dragleave', onTileDragLeave);
