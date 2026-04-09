@@ -151,6 +151,8 @@ input[type=number] {
 .tessera.dragging { opacity:0.35; box-shadow:none; }
 .tessera.drag-over-top { border-top:2px solid var(--accent); }
 .tessera.drag-over-bot { border-bottom:2px solid var(--accent); }
+.tessera.incompatibile { opacity: 0.28; }
+.tessera.incompatibile:active { opacity: 0.7; }
 .tessera-num { font-size:0.52rem; color:var(--orange); margin-right:0.35rem; font-weight:700; }
 .tessera.in-compose { padding-right:2rem; }
 .tessera-remove {
@@ -418,7 +420,12 @@ function renderTiles() {
   if (query) visible = visible.filter(t => t.text.toLowerCase().includes(query));
   if (currentView === 'grid') visible = [...visible].sort(() => Math.random() - 0.5);
   document.getElementById('tiles-count').textContent = visible.length + ' tessere';
-  visible.forEach(tile => container.appendChild(makeTessera(tile, 'tiles', null)));
+  const lastTile = getLastComposeTile();
+  visible.forEach(tile => {
+    const el = makeTessera(tile, 'tiles', null);
+    if (!isCompatibile(tile.text, lastTile)) el.classList.add('incompatibile');
+    container.appendChild(el);
+  });
 }
 
 function makeTessera(tile, zone, pos) {
@@ -464,7 +471,67 @@ function updateCounts() {
   b.className = 'counter-badge' + (n === targetLines ? ' done' : n > targetLines ? ' over' : '');
 }
 
-// ── DRAG DESKTOP ──
+// ── SINTASSI ──
+const PAROLE_APERTE = new Set([
+  // articoli determinativi
+  'il','lo','la','i','gli','le',
+  // articoli indeterminativi
+  'un','uno','una','un\'',
+  // preposizioni semplici
+  'di','a','da','in','con','su','per','tra','fra',
+  // preposizioni articolate
+  'del','dello','della','dei','degli','delle',
+  'al','allo','alla','ai','agli','alle',
+  'dal','dallo','dalla','dai','dagli','dalle',
+  'nel','nello','nella','nei','negli','nelle',
+  'sul','sullo','sulla','sui','sugli','sulle',
+  'col','coi',
+  // congiunzioni subordinanti e coordinanti
+  'che','se','perché','poiché','quando','mentre','come','affinché',
+  'benché','sebbene','quantunque','nonostante','anche','però','ma',
+  'e','ed','o','od','né','sia','oppure','dunque','quindi','infatti',
+  // pronomi clitici e relativi
+  'mi','ti','si','ci','vi','lo','la','li','le','ne','gli',
+  'cui','che','il','la',
+  // altri connettivi aperti
+  'non','già','ancora','sempre','mai','più','meno','molto','poco',
+  'questo','quello','tale','ogni','tutto','tutta','tutti','tutte',
+  'suo','sua','suoi','sue','mio','mia','miei','mie','tuo','tua',
+  'loro','nostro','nostra','vostro','vostra',
+]);
+
+function lastWordOf(text) {
+  // prende l'ultima parola, rimuove punteggiatura finale tranne apostrofo
+  const clean = text.trim().replace(/[.,;:!?»"']+$/, '').toLowerCase();
+  const parts = clean.split(/\s+/);
+  return parts[parts.length - 1] || '';
+}
+
+function isTesseraAperta(text) {
+  return PAROLE_APERTE.has(lastWordOf(text));
+}
+
+function getLastComposeTile() {
+  if (!composeTiles.length) return null;
+  return allTiles[composeTiles[composeTiles.length - 1]];
+}
+
+function firstWordOf(text) {
+  const clean = text.trim().toLowerCase().replace(/^[«"']+/, '');
+  return clean.split(/\s+/)[0] || '';
+}
+
+function isCompatibile(tileText, lastTile) {
+  // se non c'è ultima tessera o è chiusa → tutto compatibile
+  if (!lastTile) return true;
+  if (!isTesseraAperta(lastTile.text)) return true;
+  // se è aperta: la tessera successiva deve iniziare con parola NON grammaticale
+  // (cioè deve poter completare la struttura — es. un sostantivo, aggettivo, nome proprio)
+  const fw = firstWordOf(tileText);
+  // compatibile se la prima parola NON è essa stessa una parola grammaticale aperta
+  // (evita congiunzione+congiunzione, prep+prep ecc.)
+  return !PAROLE_APERTE.has(fw);
+}
 function safeClassList(el) {
   return (el && el.classList) ? el.classList : null;
 }
